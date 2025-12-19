@@ -20,14 +20,28 @@ var groqApiKey = Environment.GetEnvironmentVariable("GROQ_API_KEY") ?? "";
 // ============================
 // Log em arquivo (bem simples)
 // ============================
-var logFile = Path.Combine(AppContext.BaseDirectory, "webhook.log");
+var logDir = Path.Combine(Environment.GetEnvironmentVariable("HOME") ?? "/home", "LogFiles");
+Directory.CreateDirectory(logDir);
+
+var logFile = Path.Combine(logDir, "webhook.log");
 var logLock = new SemaphoreSlim(1, 1);
 
 async Task LogAsync(string text)
 {
-    await logLock.WaitAsync();
-    try { await File.AppendAllTextAsync(logFile, text); }
-    finally { logLock.Release(); }
+    try
+    {
+        await logLock.WaitAsync();
+        await File.AppendAllTextAsync(logFile, text);
+    }
+    catch
+    {
+        // não derruba a API se log falhar
+    }
+    finally
+    {
+        if (logLock.CurrentCount == 0)
+            logLock.Release();
+    }
 }
 
 app.Use(async (ctx, next) =>
